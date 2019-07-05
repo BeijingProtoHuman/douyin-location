@@ -12,13 +12,12 @@ const fs = require('fs');
 const path = require('path');
 const moment = require('moment');
 const logger = require('winston');
-
-logger.cli();
+const cityList = require('./citymap');
 
 if (process.argv.length < 3) {
-	logger.error('node douyin.charles.js <fpath>');
-	logger.error('node douyin.charles.js D:/douyin/');
-	process.exit();
+    logger.error('node douyin.charles.js <fpath>');
+    logger.error('node douyin.charles.js D:/douyin/');
+    process.exit();
 }
 
 let resultDir = '../result/';
@@ -29,81 +28,97 @@ let userSet = new Set();
 start();
 
 function start() {
-	init();
-	parser();
+    init();
+    parser();
 }
-
 
 function parser() {
 
-	let _parser = fpath => {
-		let buffer = fs.readFileSync(fpath);
-		let resultObjs = JSON.parse(buffer);
+    let _parser = fpath => {
+        let buffer = fs.readFileSync(fpath);
+        let resultObjs = JSON.parse(buffer);
 
-		logger.info(`File: ${fpath} - ${resultObjs.length} 个请求`);
+        logger.info(`File: ${fpath} - ${resultObjs.length} 个请求`);
 
-		resultObjs.forEach((reqObjs, idx) => {
+        resultObjs.forEach((reqObjs, idx) => {
 
-			const startTime = reqObjs.times.start;
+            //this part is used to extract the cityName from request all response wihout valid longitude and latitude will be skipped
+            const startTime = reqObjs.times.start;
+            const queryString = reqObjs.query;
+            let parametersList = queryString.split('&');
+            let cityKey = '';
+            parametersList.forEach(parameter => {
+                let pKey = parameter.split('=')[0];
+                let pValue = parameter.split('=')[1];
+                if (pKey === 'longitude' || pKey === 'latitude') {
+                    cityKey = cityKey.concat(pValue.slice(0,pValue.indexOf('.')+2));
+                }
+            })
 
-			if (!reqObjs.response.body) {
-				logger.warn(`      ${fpath} - 第 ${idx} 个, response为空`);
-				return;
-			}
-			if (reqObjs.path !== '/aweme/v1/feed/') {
-				logger.warn(`      ${fpath} 跳过 - 第 ${idx} 个, ${reqObjs.path}`);
-				return;
-			}
-			if (reqObjs.response.body.encoding === 'base64') {
-				reqObjs.response.body.text = new Buffer(reqObjs.response.body.encoded, 'base64').toString();
-			}
-			try {
-				reqObjs = JSON.parse(reqObjs.response.body.text).aweme_list;
-			} catch (err) {
-				logger.error(`      ${fpath} - 第 ${idx} 个, 解析错误`);
-				return;
-			}
-			if (!reqObjs) {
-				logger.warn(`      ${fpath} - 第 ${idx} 个, aweme_list列表为空`);
-				return;
-			}
+            let cityName = cityList.get(cityKey);
+            console.log(cityName);
+            if(cityName) {
+                if (!reqObjs.response.body) {
+                    logger.warn(`      ${fpath} - 第 ${idx} 个, response为空`);
+                    return;
+                }
+                if (reqObjs.path !== '/aweme/v1/feed/') {
+                    logger.warn(`      ${fpath} 跳过 - 第 ${idx} 个, ${reqObjs.path}`);
+                    return;
+                }
+                if (reqObjs.response.body.encoding === 'base64') {
+                    reqObjs.response.body.text = new Buffer(reqObjs.response.body.encoded, 'base64').toString();
+                }
+                try {
+                    reqObjs = JSON.parse(reqObjs.response.body.text).aweme_list;
+                    console.log(reqObjs.request);
+                } catch (err) {
+                    logger.error(`      ${fpath} - 第 ${idx} 个, 解析错误`);
+                    return;
+                }
+                if (!reqObjs) {
+                    logger.warn(`      ${fpath} - 第 ${idx} 个, aweme_list列表为空`);
+                    return;
+                }
 
-			reqObjs.forEach(videoObj => {
-				let row = [
-					videoObj.aweme_id,
-					videoObj.desc,
-					moment(Number(videoObj.create_time + '000')).format('YYYY-MM-DD'),
-					videoObj.author.nickname,
-					videoObj.author.uid,
-					moment(Number(videoObj.author.create_time + '000')).format('YYYY-MM-DD'),
-					videoObj.author.constellation,
-					videoObj.author.birthday,
-					videoObj.author.gender,
-					videoObj.share_url,
-					videoObj.is_ads,
-					startTime
-				].map(item => {
-					item += '';
-					return item.trim().replace(/[\s,"]+/g, ' ');
-				}).join();
-				fs.appendFileSync(videoFile, row + '\n');
-				if (userSet.has(videoObj.author.uid)) return;
-				if(userSet.size > 40000) return;
-				fs.appendFileSync(userIdFile, videoObj.author.uid + '\n');
-				userSet.add(videoObj.author.uid);
-			});
-		});
-		
-	};
+                reqObjs.forEach(videoObj => {
+                    let row = [
+                        videoObj.aweme_id,
+                        videoObj.desc,
+                        moment(Number(videoObj.create_time + '000')).format('YYYY-MM-DD'),
+                        videoObj.author.nickname,
+                        videoObj.author.uid,
+                        moment(Number(videoObj.author.create_time + '000')).format('YYYY-MM-DD'),
+                        videoObj.author.constellation,
+                        videoObj.author.birthday,
+                        videoObj.author.gender,
+                        videoObj.share_url,
+                        videoObj.is_ads,
+                        cityName,
+                        startTime
+                    ].map(item => {
+                        item += '';
+                        return item.trim().replace(/[\s,"]+/g, ' ');
+                    }).join();
+                    fs.appendFileSync(videoFile, row + '\n');
+                    if (userSet.has(videoObj.author.uid)) return;
+                    if (userSet.size > 40000) return;
+                    fs.appendFileSync(userIdFile, videoObj.author.uid + '\n');
+                    userSet.add(videoObj.author.uid);
+                });
+            }            
+        });
 
-	getFiles(process.argv[2]).map(_parser);
-	logger.info(`Done: ${userSet.size} 个用户`);
+    };
+
+    getFiles(process.argv[2]).map(_parser);
+    logger.info(`Done: ${userSet.size} 个用户`);
 }
 
 function init() {
-	if (!fs.existsSync(resultDir)) fs.mkdirSync(resultDir);
-	fs.writeFileSync(videoFile, '\ufeff视频ID,描述,上传日期,作者,作者ID,注册日期,星座,生日,性别,URL,广告,请求数据包发送时间\n');
-	fs.writeFileSync(userIdFile, '\ufeff');
+    if (!fs.existsSync(resultDir)) fs.mkdirSync(resultDir);
+    fs.writeFileSync(videoFile, '\ufeff视频ID,描述,上传日期,作者,作者ID,注册日期,星座,生日,性别,URL,广告,请求城市,请求数据包发送时间\n');
+    fs.writeFileSync(userIdFile, '\ufeff');
 }
 
 /**
@@ -112,13 +127,13 @@ function init() {
  *
  */
 function getFiles(fpath, files) {
-	files = files || [];
-	let isDir = fname => fs.statSync(fname).isDirectory();
+    files = files || [];
+    let isDir = fname => fs.statSync(fname).isDirectory();
 
-	fs.readdirSync(fpath).forEach((fname, idx) => {
-		let subFpath = path.join(fpath, fname);
-		if (isDir(subFpath)) return getFiles(subFpath, files);
-		files.push(subFpath);
-	});
-	return files;
+    fs.readdirSync(fpath).forEach((fname, idx) => {
+        let subFpath = path.join(fpath, fname);
+        if (isDir(subFpath)) return getFiles(subFpath, files);
+        files.push(subFpath);
+    });
+    return files;
 }

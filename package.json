@@ -1,5 +1,5 @@
 {
-  "name": "yonghui",
+  "name": "sp",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -9,6 +9,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "moment": "^2.24.0"
+    "bda-util": "^0.1.2",
+    "crawler": "^1.2.1",
+    "csv-parser": "^2.3.0",
+    "moment": "^2.24.0",
+    "ramda": "^0.26.1",
+    "seenreq": "^3.0.0",
+    "winston": "^2.4.4"
   }
 }

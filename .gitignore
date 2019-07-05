@@ -1,1 +1,4 @@
+data/
+result/
+*.chls
 node_modules/
