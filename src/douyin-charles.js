@@ -50,16 +50,16 @@ function parser() {
                 let pKey = parameter.split('=')[0];
                 let pValue = parameter.split('=')[1];
                 if (pKey === 'longitude' || pKey === 'latitude') {
-                    cityKey = cityKey.concat(pValue.slice(0,pValue.indexOf('.')+2));
+                    cityKey = cityKey.concat(pValue.slice(0, pValue.indexOf('.') + 2));
                 }
             })
 
             let cityName = cityList.get(cityKey);
-            if(!cityName) {
+            if (!cityName) {
                 console.log(`*************************${cityKey}`)
             }
             console.log(cityName);
-            if(cityName) {
+            if (cityName) {
                 if (!reqObjs.response.body) {
                     logger.warn(`      ${fpath} - 第 ${idx} 个, response为空`);
                     return;
@@ -73,7 +73,7 @@ function parser() {
                 }
                 try {
                     reqObjs = JSON.parse(reqObjs.response.body.text).aweme_list;
-                    console.log(reqObjs.request);
+                    //console.log(reqObjs.request);
                 } catch (err) {
                     logger.error(`      ${fpath} - 第 ${idx} 个, 解析错误`);
                     return;
@@ -97,7 +97,8 @@ function parser() {
                         videoObj.share_url,
                         videoObj.is_ads,
                         cityName,
-                        startTime
+                        moment(startTime).format('YYYY-MM-DD'),
+                        moment(startTime).format('HH:MM:ss')
                     ].map(item => {
                         item += '';
                         return item.trim().replace(/[\s,"]+/g, ' ');
@@ -108,7 +109,7 @@ function parser() {
                     fs.appendFileSync(userIdFile, videoObj.author.uid + '\n');
                     userSet.add(videoObj.author.uid);
                 });
-            }            
+            }
         });
 
     };
@@ -119,7 +120,7 @@ function parser() {
 
 function init() {
     if (!fs.existsSync(resultDir)) fs.mkdirSync(resultDir);
-    fs.writeFileSync(videoFile, '\ufeff视频ID,描述,上传日期,作者,作者ID,注册日期,星座,生日,性别,URL,广告,请求城市,请求数据包发送时间\n');
+    fs.writeFileSync(videoFile, '\ufeff视频ID,描述,上传日期,作者,作者ID,注册日期,星座,生日,性别,URL,广告,请求城市,请求数据包发送日期,请求数据包发送时间\n');
     fs.writeFileSync(userIdFile, '\ufeff');
 }
 
