@@ -1,4 +1,5 @@
 data/
 result/
 *.chls
+*.chlsj
 node_modules/

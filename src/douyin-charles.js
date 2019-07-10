@@ -24,7 +24,6 @@ let resultDir = '../result/';
 let videoFile = `${resultDir}douyin.videos_${moment().format('YYYY-MM-DD')}.csv`;
 let userIdFile = `${resultDir}douyin.users_${moment().format('YYYY-MM')}.csv`;
 let userSet = new Set();
-
 start();
 
 function start() {
@@ -56,6 +55,9 @@ function parser() {
             })
 
             let cityName = cityList.get(cityKey);
+            if(!cityName) {
+                console.log(`*************************${cityKey}`)
+            }
             console.log(cityName);
             if(cityName) {
                 if (!reqObjs.response.body) {
