@@ -32,7 +32,9 @@ function start() {
 }
 
 function parser() {
-
+    //Timer reset for each json seesion package
+    let currentCity = '';
+    let firstCityPackageTime;
     let _parser = fpath => {
         let buffer = fs.readFileSync(fpath);
         let resultObjs = JSON.parse(buffer);
@@ -58,8 +60,16 @@ function parser() {
             if (!cityName) {
                 console.log(`*************************${cityKey}`)
             }
-            console.log(cityName);
             if (cityName) {
+                let offsetTimeFromFirstPackage;
+                if (currentCity !== cityName) {
+                    //first package with valid city name
+                    currentCity = cityName;
+                    firstCityPackageTime = moment(startTime);
+                    offsetTimeFromFirstPackage = '0:00:00';
+                } else {
+                    offsetTimeFromFirstPackage = getTimeOffSetString(moment(startTime).diff(moment(firstCityPackageTime)));
+                }
                 if (!reqObjs.response.body) {
                     logger.warn(`      ${fpath} - 第 ${idx} 个, response为空`);
                     return;
@@ -98,7 +108,8 @@ function parser() {
                         videoObj.is_ads,
                         cityName,
                         moment(startTime).format('YYYY-MM-DD'),
-                        moment(startTime).format('HH:MM:ss')
+                        moment(startTime).format('HH:MM:ss'),
+                        offsetTimeFromFirstPackage
                     ].map(item => {
                         item += '';
                         return item.trim().replace(/[\s,"]+/g, ' ');
@@ -106,7 +117,7 @@ function parser() {
                     fs.appendFileSync(videoFile, row + '\n');
                     if (userSet.has(videoObj.author.uid)) return;
                     if (userSet.size > 40000) return;
-                    fs.appendFileSync(userIdFile, videoObj.author.uid + '\n');
+                    // fs.appendFileSync(userIdFile, videoObj.author.uid + '\n');
                     userSet.add(videoObj.author.uid);
                 });
             }
@@ -118,10 +129,25 @@ function parser() {
     logger.info(`Done: ${userSet.size} 个用户`);
 }
 
+function getTimeOffSetString(miliSeconds) {
+    let rawSeconds = Math.floor(miliSeconds / 1000);
+    let hourNumber = Math.floor(rawSeconds / 3600);
+    rawSeconds = rawSeconds - hourNumber * 3600;
+    let minNumber = Math.floor(rawSeconds / 60);
+    rawSeconds = rawSeconds - minNumber * 60;
+    let secNumber = rawSeconds;
+    const hourString = hourNumber.toString();
+    const minString = minNumber < 10 ? `0${minNumber}` : minNumber.toString();
+    const secString = secNumber < 10 ? `0${secNumber}` : secNumber.toString();
+
+    return `${hourString}:${minString}:${secString}`
+}
+
 function init() {
     if (!fs.existsSync(resultDir)) fs.mkdirSync(resultDir);
-    fs.writeFileSync(videoFile, '\ufeff视频ID,描述,上传日期,作者,作者ID,注册日期,星座,生日,性别,URL,广告,请求城市,请求数据包发送日期,请求数据包发送时间\n');
-    fs.writeFileSync(userIdFile, '\ufeff');
+    fs.writeFileSync(videoFile, '\ufeff视频ID,描述,上传日期,作者,作者ID,注册日期,星座,生日,性别,URL,广告,请求城市,请求数据包发送日期,请求数据包发送时间,距离第一个请求时间\n');
+    // turn off user file write
+    // fs.writeFileSync(userIdFile, '\ufeff');
 }
 
 /**
